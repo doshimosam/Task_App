@@ -1,0 +1,209 @@
+{
+  "info": {
+    "name": "TaskFlow API",
+    "_postman_id": "taskflow-api-collection",
+    "description": "Complete REST API collection for TaskFlow — a mini task management tool.\n\n**Setup:**\n1. Import this collection into Postman\n2. Set the `base_url` variable to `http://localhost:8000`\n3. Start with the Auth requests to get a token, or use the Tasks endpoints directly (guest mode)\n\n**Note:** The `{{token}}` variable is auto-set after login/register.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8000", "type": "string" },
+    { "key": "token", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "🔐 Auth",
+      "item": [
+        {
+          "name": "Register",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const json = pm.response.json();",
+                  "  pm.collectionVariables.set('token', json.access_token);",
+                  "  console.log('Token saved:', json.access_token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"john_doe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"securepassword123\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/auth/register", "host": ["{{base_url}}"], "path": ["api", "auth", "register"] },
+            "description": "Register a new user. Returns a JWT token. The test script auto-saves the token."
+          },
+          "response": [
+            {
+              "name": "201 Created",
+              "status": "Created",
+              "code": 201,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"access_token\": \"eyJhbGciOiJIUzI1NiJ9...\",\n  \"token_type\": \"bearer\",\n  \"user\": {\n    \"id\": 1,\n    \"username\": \"john_doe\",\n    \"email\": \"john@example.com\",\n    \"created_at\": \"2025-01-15T10:00:00Z\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  pm.collectionVariables.set('token', json.access_token);",
+                  "  console.log('Logged in as:', json.user.username);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"john_doe\",\n  \"password\": \"securepassword123\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/auth/login", "host": ["{{base_url}}"], "path": ["api", "auth", "login"] },
+            "description": "Login with username and password. Token is auto-saved to `{{token}}`."
+          }
+        },
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/api/auth/me", "host": ["{{base_url}}"], "path": ["api", "auth", "me"] },
+            "description": "Returns the authenticated user's profile. Requires a valid token."
+          }
+        }
+      ]
+    },
+    {
+      "name": "✅ Tasks",
+      "item": [
+        {
+          "name": "Get All Tasks",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "description": "Optional — omit for guest tasks" }],
+            "url": {
+              "raw": "{{base_url}}/api/tasks/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "tasks", ""],
+              "query": [
+                { "key": "status", "value": "pending", "disabled": true, "description": "pending | in_progress | completed" },
+                { "key": "priority", "value": "high", "disabled": true, "description": "low | medium | high" },
+                { "key": "skip", "value": "0", "disabled": true },
+                { "key": "limit", "value": "100", "disabled": true }
+              ]
+            },
+            "description": "Returns all tasks. If authenticated, returns only the user's tasks. Guest users see only unowned tasks.\n\n**Filters (optional):**\n- `status`: pending, in_progress, completed\n- `priority`: low, medium, high\n- `skip` / `limit`: for pagination"
+          }
+        },
+        {
+          "name": "Get Task Summary",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "disabled": true }],
+            "url": { "raw": "{{base_url}}/api/tasks/summary", "host": ["{{base_url}}"], "path": ["api", "tasks", "summary"] },
+            "description": "Returns count breakdown: total, pending, in_progress, completed, and high_priority tasks."
+          }
+        },
+        {
+          "name": "Get Single Task",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/api/tasks/1", "host": ["{{base_url}}"], "path": ["api", "tasks", "1"] },
+            "description": "Fetch a single task by its ID. Returns 404 if not found."
+          }
+        },
+        {
+          "name": "Create Task",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}", "description": "Optional — omit to create guest task" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Set up CI/CD pipeline\",\n  \"description\": \"Configure GitHub Actions for automated testing and deployment\",\n  \"status\": \"pending\",\n  \"priority\": \"high\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/tasks/", "host": ["{{base_url}}"], "path": ["api", "tasks", ""] },
+            "description": "Create a new task.\n\n**Required fields:**\n- `title` (string, max 200 chars)\n\n**Optional fields:**\n- `description` (text)\n- `status`: `pending` (default) | `in_progress` | `completed`\n- `priority`: `low` | `medium` (default) | `high`"
+          },
+          "response": [
+            {
+              "name": "201 Created",
+              "status": "Created",
+              "code": 201,
+              "body": "{\n  \"id\": 1,\n  \"title\": \"Set up CI/CD pipeline\",\n  \"description\": \"Configure GitHub Actions for automated testing\",\n  \"status\": \"pending\",\n  \"priority\": \"high\",\n  \"created_at\": \"2025-01-15T10:30:00Z\",\n  \"updated_at\": \"2025-01-15T10:30:00Z\",\n  \"owner_id\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update Task (Partial)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"in_progress\",\n  \"priority\": \"medium\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/tasks/1", "host": ["{{base_url}}"], "path": ["api", "tasks", "1"] },
+            "description": "Partial update — only include the fields you want to change.\n\n**Updatable fields:** `title`, `description`, `status`, `priority`\n\nThe `updated_at` timestamp is automatically set."
+          }
+        },
+        {
+          "name": "Delete Task",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{base_url}}/api/tasks/1", "host": ["{{base_url}}"], "path": ["api", "tasks", "1"] },
+            "description": "Permanently delete a task by ID. Returns 204 No Content on success, 404 if not found."
+          }
+        }
+      ]
+    },
+    {
+      "name": "🏥 Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/health", "host": ["{{base_url}}"], "path": ["health"] },
+            "description": "Simple health check endpoint. Useful for Docker health checks and uptime monitoring."
+          }
+        },
+        {
+          "name": "API Root",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/", "host": ["{{base_url}}"], "path": [""] }
+          }
+        },
+        {
+          "name": "Swagger Docs",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/docs", "host": ["{{base_url}}"], "path": ["docs"] },
+            "description": "Open FastAPI's auto-generated Swagger UI in your browser."
+          }
+        }
+      ]
+    }
+  ]
+}
